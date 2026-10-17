@@ -1,0 +1,13 @@
+# build output
+*.o
+explain
+bin/
+
+# the database is generated, not committed
+*.db
+*.db-wal
+*.db-shm
+
+.vscode/
+.idea/
+.DS_Store

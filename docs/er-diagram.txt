@@ -1,0 +1,76 @@
+Mini Social Platform - ER Diagram
+=================================
+
+                      +---------------------------+
+          +---------->|           users           |<----------+
+          |           +---------------------------+           |
+          |           | PK  user_id       INTEGER |           |
+          |           | UQ  handle        TEXT    |           |
+          |           |     display_name  TEXT    |           |
+          |           |     created_at    INTEGER |           |
+          |           +---------------------------+           |
+          |              |                    |               |
+          | follower_id  | writes             | user_id       | followee_id
+          |              | 1:N                |               |
+          |              v                    |               |
+          |     +---------------------------+ |               |
+          |     |           posts           | |               |
+          |     +---------------------------+ |               |
+          |     | PK  post_id       INTEGER | |               |
+          |     | FK  user_id       INTEGER | |               |
+          |     |     body          TEXT    | |               |
+          |     |     created_at    INTEGER | |               |
+          |     +---------------------------+ |               |
+          |              |                    |               |
+          |              | post_id            |               |
+          |              v                    v               |
+          |     +----------------------------------+          |
+          |     |              likes               |          |
+          |     +----------------------------------+          |
+          |     | PK,FK  post_id          INTEGER  |          |
+          |     | PK,FK  user_id          INTEGER  |          |
+          |     |        created_at       INTEGER  |          |
+          |     +----------------------------------+          |
+          |                                                   |
+          |           +---------------------------+           |
+          +-----------|          follows          |-----------+
+                      +---------------------------+
+                      | PK,FK follower_id INTEGER |
+                      | PK,FK followee_id INTEGER |
+                      |       created_at  INTEGER |
+                      +---------------------------+
+                      CHECK follower_id <> followee_id
+
+
+Relationships
+-------------
+  users 1 ---- N posts    one user writes many posts
+
+  users N ---- N users    through follows. A user follows many users and
+                          is followed by many users. This is a self-join,
+                          both columns point back at users.
+
+  users N ---- N posts    through likes. A user likes many posts and a
+                          post is liked by many users.
+
+
+Why follows and likes have no id column
+---------------------------------------
+Both are join tables. The pair of foreign keys is the primary key, so the
+database itself stops a duplicate follow or a duplicate like. If I had added
+a separate id column I would still have needed a UNIQUE index on the pair,
+which means storing the same two values twice.
+
+
+Foreign keys
+------------
+  posts.user_id       -> users.user_id    ON DELETE CASCADE
+  follows.follower_id -> users.user_id    ON DELETE CASCADE
+  follows.followee_id -> users.user_id    ON DELETE CASCADE
+  likes.user_id       -> users.user_id    ON DELETE CASCADE
+  likes.post_id       -> posts.post_id    ON DELETE CASCADE
+
+Everything cascades. Deleting a user removes their posts, their follow edges
+in both directions, and their likes. Without this I would end up with rows
+pointing at a user that no longer exists, and then every read query needs an
+extra join just to check the author is still there.
