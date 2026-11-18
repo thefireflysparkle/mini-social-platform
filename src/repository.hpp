@@ -128,6 +128,75 @@ public:
         return out;
     }
 
+    // ---- B4 (a): how many followers does this user have -----------------
+    //
+    // Filters on followee_id, which is the index I added in 002 precisely
+    // because the table's own primary key index starts with follower_id and
+    // cannot serve this direction.
+    static constexpr const char* SQL_FOLLOWER_COUNT =
+        "SELECT COUNT(*) FROM follows WHERE followee_id = ?;";
+
+    long long follower_count(long long user_id) {
+        auto s = db_.prepare(SQL_FOLLOWER_COUNT);
+        s.bind(1, user_id);
+        s.step();
+        return s.col_int(0);
+    }
+
+    // ---- B4 (c): most liked post in the last 24 hours -------------------
+    //
+    // The like count is a correlated scalar subquery, not a GROUP BY over a
+    // join to likes. My first version was the GROUP BY one. With the indexes
+    // in place it ran 2.5 to 3.5 times slower, and its plan showed why: it
+    // starts with SCAN p, reading all 200k posts, instead of using the
+    // created_at index to jump to the last 24 hours. The join to likes makes
+    // one row per like before grouping, and the planner would not combine
+    // that with the time index.
+    //
+    // The subquery version narrows to the window first, then counts each
+    // post's likes inside the index on likes(post_id) without reading any
+    // like rows. Both versions are timed in tools/queries.cpp.
+    static constexpr const char* SQL_TOP_POST_24H =
+        "SELECT p.post_id, p.user_id, p.body, p.created_at, u.handle, "
+        "       (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.post_id) "
+        "         AS like_count "
+        "FROM posts p "
+        "JOIN users u ON u.user_id = p.user_id "
+        "WHERE p.created_at >= ? "
+        "ORDER BY like_count DESC, p.created_at DESC "
+        "LIMIT 1;";
+
+    // The slower version, kept so the comparison can be rerun.
+    static constexpr const char* SQL_TOP_POST_24H_GROUPBY =
+        "SELECT p.post_id, p.user_id, p.body, p.created_at, u.handle, "
+        "       COUNT(l.user_id) AS like_count "
+        "FROM posts p "
+        "JOIN users u ON u.user_id = p.user_id "
+        "LEFT JOIN likes l ON l.post_id = p.post_id "
+        "WHERE p.created_at >= ? "
+        "GROUP BY p.post_id "
+        "ORDER BY like_count DESC, p.created_at DESC "
+        "LIMIT 1;";
+
+    bool top_post_24h(long long since_epoch, Post& out, long long& like_count) {
+        auto s = db_.prepare(SQL_TOP_POST_24H);
+        s.bind(1, since_epoch);
+        if (!s.step()) return false;
+        out = {s.col_int(0), s.col_int(1), s.col_int(3),
+               s.col_text(2), s.col_text(4)};
+        like_count = s.col_int(5);
+        return true;
+    }
+
+    // How many posts fall inside the window. Used in the writeup to show how
+    // much the time filter cuts down before any counting happens.
+    long long posts_since(long long since_epoch) {
+        auto s = db_.prepare("SELECT COUNT(*) FROM posts WHERE created_at >= ?;");
+        s.bind(1, since_epoch);
+        s.step();
+        return s.col_int(0);
+    }
+
 private:
     Db& db_;
 };

@@ -7,7 +7,7 @@ Social feed service built up across a system design assignment series.
 - [x] Assignment 7 B1: schema design, SQL vs NoSQL writeup, ER diagram
 - [x] Assignment 7 B2: storage moved from flat files to SQLite, endpoints unchanged
 - [x] Assignment 7 B3: indexes, with the feed query plan before and after
-- [ ] Assignment 7 B4: the three queries
+- [x] Assignment 7 B4: three optimized queries, see docs/08-queries.md
 
 ## Running it
 
@@ -53,6 +53,7 @@ migrations/001_init.sql   tables, foreign keys, constraints
 migrations/002_indexes.sql four indexes for the hot queries
 mig_only_001/             copy of 001 alone, used to capture the before plan
 tools/explain.cpp         seeds data and prints EXPLAIN QUERY PLAN plus timings
+tools/queries.cpp         plans and timings for the three B4 queries
 src/db.hpp                RAII wrapper over the SQLite C API
 src/migrate.hpp           migration runner, forward only
 src/repository.hpp        every query lives here, all prepared statements
@@ -63,6 +64,8 @@ docs/08-db-choice.md      why SQL and why SQLite
 docs/er-diagram.txt       ER diagram
 docs/explain_before.txt   feed query plan with no indexes
 docs/explain_after.txt    same query, same data, with the indexes
+docs/08-queries.md        the three queries and why each is efficient
+docs/explain_queries.txt  raw output from tools/queries.cpp
 ```
 
 ## Indexes and the feed query

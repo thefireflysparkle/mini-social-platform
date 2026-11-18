@@ -2,6 +2,7 @@
 *.o
 explain
 server
+queries
 bin/
 
 # the database is generated, not committed

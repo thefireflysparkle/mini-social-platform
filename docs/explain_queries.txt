@@ -1,0 +1,29 @@
+== (a) follower count for user 7 ==
+  SEARCH follows USING COVERING INDEX idx_follows_followee (followee_id=?)
+  result: 50 followers
+  mean over 200 runs: 0.00527439 ms
+
+== (b) latest 20 posts from people user 7 follows ==
+  SEARCH f USING COVERING INDEX sqlite_autoindex_follows_1 (follower_id=?)
+  SEARCH u USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH p USING INDEX idx_posts_user_created (user_id=?)
+  USE TEMP B-TREE FOR ORDER BY
+  result: 20 posts
+  mean over 200 runs: 1.0795 ms
+
+== (c) most liked post in the last 24 hours ==
+  posts inside the window: 6601 out of 200000
+  SCAN u USING COVERING INDEX sqlite_autoindex_users_1
+  SEARCH p USING INDEX idx_posts_user_created (user_id=? AND created_at>?)
+  CORRELATED SCALAR SUBQUERY 1
+  SEARCH l USING COVERING INDEX idx_likes_post (post_id=?)
+  USE TEMP B-TREE FOR ORDER BY
+  result: post 140790 by user1858 with 8 likes
+  mean over 20 runs: 9.73716 ms
+
+== (c) the GROUP BY version, for comparison ==
+  SCAN p
+  SEARCH u USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH l USING INDEX idx_likes_post (post_id=?) LEFT-JOIN
+  USE TEMP B-TREE FOR ORDER BY
+  mean over 3 runs: 25.184 ms
