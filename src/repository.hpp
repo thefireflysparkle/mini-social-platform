@@ -104,15 +104,20 @@ public:
     // subquery form makes SQLite build the followee list first before it can
     // start on posts. With the join it can drive straight off the follows
     // index into posts.
+    // Pulled out as a constant so tools/explain.cpp can run EXPLAIN QUERY
+    // PLAN against the exact same string the endpoint uses. If it were inline
+    // below, the plan I commit and the query I actually run could drift apart.
+    static constexpr const char* SQL_FEED =
+        "SELECT p.post_id, p.user_id, p.body, p.created_at, u.handle "
+        "FROM follows f "
+        "JOIN posts p ON p.user_id = f.followee_id "
+        "JOIN users u ON u.user_id = p.user_id "
+        "WHERE f.follower_id = ? "
+        "ORDER BY p.created_at DESC, p.post_id DESC "
+        "LIMIT ?;";
+
     std::vector<Post> feed(long long user_id, int limit = 20) {
-        auto s = db_.prepare(
-            "SELECT p.post_id, p.user_id, p.body, p.created_at, u.handle "
-            "FROM follows f "
-            "JOIN posts p ON p.user_id = f.followee_id "
-            "JOIN users u ON u.user_id = p.user_id "
-            "WHERE f.follower_id = ? "
-            "ORDER BY p.created_at DESC, p.post_id DESC "
-            "LIMIT ?;");
+        auto s = db_.prepare(SQL_FEED);
         s.bind(1, user_id).bind(2, static_cast<long long>(limit));
 
         std::vector<Post> out;

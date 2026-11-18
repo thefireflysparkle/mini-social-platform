@@ -37,6 +37,15 @@ public:
         if (rc == SQLITE_DONE) return false;
         throw DbError(std::string("step: ") + sqlite3_errmsg(db_));
     }
+    // Clears the bindings and rewinds so the same prepared statement can be
+    // run again. I added this for the seeder in tools/explain.cpp, which
+    // inserts 200k rows: preparing a fresh statement per row made seeding take
+    // minutes, because every one of them re-parses the SQL.
+    void reset() {
+        sqlite3_reset(st_);
+        sqlite3_clear_bindings(st_);
+    }
+
     long long   col_int (int i) const { return sqlite3_column_int64(st_, i); }
     std::string col_text(int i) const {
         auto p = reinterpret_cast<const char*>(sqlite3_column_text(st_, i));

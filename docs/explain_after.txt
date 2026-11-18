@@ -1,0 +1,10 @@
+applied 002_indexes.sql
+
+== feed: latest 20 posts from people user 7 follows ==
+  SEARCH f USING COVERING INDEX sqlite_autoindex_follows_1 (follower_id=?)
+  SEARCH u USING INTEGER PRIMARY KEY (rowid=?)
+  SEARCH p USING INDEX idx_posts_user_created (user_id=?)
+  USE TEMP B-TREE FOR ORDER BY
+
+== timing ==
+  feed, limit 20 : 0.916992 ms   (mean of 200 runs)

@@ -1,0 +1,12 @@
+applied 001_init.sql
+seeded 2000 users, 200000 posts, 300000 likes
+
+== feed: latest 20 posts from people user 7 follows ==
+  SCAN p
+  BLOOM FILTER ON f (follower_id=? AND followee_id=?)
+  SEARCH f USING INDEX sqlite_autoindex_follows_1 (follower_id=? AND followee_id=?)
+  SEARCH u USING INTEGER PRIMARY KEY (rowid=?)
+  USE TEMP B-TREE FOR ORDER BY
+
+== timing ==
+  feed, limit 20 : 16.5653 ms   (mean of 200 runs)

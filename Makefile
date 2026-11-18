@@ -4,17 +4,31 @@ LDLIBS   := -lsqlite3
 DB       := social.db
 PORT     := 3000
 
-.PHONY: all run clean
+HEADERS  := src/db.hpp src/migrate.hpp src/repository.hpp
 
-all: server
+.PHONY: all run plans clean
 
-server: src/server.cpp src/db.hpp src/migrate.hpp src/repository.hpp src/http.hpp src/json.hpp
+all: server explain
+
+server: src/server.cpp $(HEADERS) src/http.hpp src/json.hpp
 	$(CXX) $(CXXFLAGS) src/server.cpp $(LDLIBS) -o server
 
-# Migrations run automatically on boot, so this creates the database if it
-# is not there yet and leaves it alone if it is.
+explain: tools/explain.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) tools/explain.cpp $(LDLIBS) -o explain
+
+# Migrations run on boot, so this creates the database if it is missing.
 run: server
 	./server $(DB) migrations $(PORT)
 
+# Regenerates both committed query plans from scratch.
+# First pass applies 001 only and seeds, so the plan has no indexes to use.
+# Second pass applies 002 to the same database, so the data is identical and
+# only the indexes differ.
+plans: explain
+	rm -f $(DB) $(DB)-wal $(DB)-shm
+	./explain $(DB) mig_only_001 --seed > docs/explain_before.txt
+	./explain $(DB) migrations            > docs/explain_after.txt
+	@echo "wrote docs/explain_before.txt and docs/explain_after.txt"
+
 clean:
-	rm -f server $(DB) $(DB)-wal $(DB)-shm
+	rm -f server explain $(DB) $(DB)-wal $(DB)-shm
