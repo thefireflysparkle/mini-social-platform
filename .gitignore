@@ -1,6 +1,7 @@
 # build output
 *.o
 explain
+server
 bin/
 
 # the database is generated, not committed
